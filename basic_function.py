@@ -2,6 +2,8 @@
 import os,re
 from lxml import etree
 import requests,time
+from concurrent.futures import ThreadPoolExecutor
+
 #MX动漫网页，指定来到“名侦探柯南“页面
 url = 'https://mxdm0.com/index.php/vod/detail/id/143.html'
 
@@ -28,17 +30,35 @@ class Basic_Function():
         tree = etree.HTML(content)
         return len(tree.xpath(xpath))
 
+    # #得到当前是第几集漫画，并且创建文件夹，并将第几集漫画的所有ts文件放到对应的文件夹中
+    # def capture_each_movie_number_name(self,content,xpath):
+    #     tree = etree.HTML(content)
+    #     for i in range(self.count_movie_total_number(content,xpath)):
+    #         i = i + 1
+    #         sub_xpath = movie_total_number + "[{}]/a/text()".format(i)
+    #         contents = tree.xpath(sub_xpath)
+    #         for content in contents:
+    #             #content 是  “第001集”字符串
+    #             self.create_sub_movie_directory(content)
+    #             self.handle_sub_url(i,content)
+
     #得到当前是第几集漫画，并且创建文件夹，并将第几集漫画的所有ts文件放到对应的文件夹中
-    def capture_each_movie_number_name(self,content,xpath):
-        tree = etree.HTML(content)
-        for i in range(self.count_movie_total_number(content,xpath)):
-            i = i + 1
+    def new_func(self,i,tree):
             sub_xpath = movie_total_number + "[{}]/a/text()".format(i)
             contents = tree.xpath(sub_xpath)
             for content in contents:
                 #content 是  “第001集”字符串
                 self.create_sub_movie_directory(content)
                 self.handle_sub_url(i,content)
+
+    #创建线程资源池，并行执行。
+    def capture_each_movie_number_name(self,content,xpath):
+        tree = etree.HTML(content)
+        total = self.count_movie_total_number(content,xpath)
+        with ThreadPoolExecutor(50) as t:
+            for i in range(1,total):
+                t.submit(self.new_func,i,tree)
+
 
     #创建以动漫名称命名的文件夹
     def create_movie_directory(self):
@@ -81,7 +101,7 @@ class Basic_Function():
         else:
             with open(index_m3u8,mode="wt") as f:
                 sub = requests.get(result[0],timeout=600000)
-                time.sleep(1)
+                time.sleep(5)
                 sub_text = sub.text
                 f.write(sub_text)
             f.close()
@@ -90,17 +110,3 @@ class Basic_Function():
     def replace_unicode_escape(self,match):
         code_point = int(match.group(1), 16)
         return chr(code_point)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
